@@ -11,6 +11,13 @@ document.addEventListener('DOMContentLoaded', () => {
 		rotation: 0
 	};
 
+	// Store initial position to use with reset
+	const initialPosition = {
+		x: 0,
+		y: 0,
+		rotation: 0
+	};
+
 	const speed = 10; // pixels per keypress
 	const rotationSpeed = 10; // degrees per rotation adjustment
 	let targetRotation = 0; // The rotation we want the cicada to have
@@ -26,6 +33,16 @@ document.addEventListener('DOMContentLoaded', () => {
 		s: false,
 		d: false
 	};
+
+	// Reset function - returns cicada to initial position
+	function resetCicada() {
+		position.x = initialPosition.x;
+		position.y = initialPosition.y;
+		position.rotation = initialPosition.rotation;
+		targetRotation = initialPosition.rotation;
+		updateCicadaPosition();
+		updateFlightAnimation(false);
+	}
 
 	// Apply cicada position and transforms
 	function updateCicadaPosition() {
@@ -94,6 +111,12 @@ document.addEventListener('DOMContentLoaded', () => {
 				e.preventDefault();
 			}
 		}
+
+		// Reset when spacebar is pressed
+		if (e.key === ' ') {
+			e.preventDefault(); // Prevent page scrolling with spacebar
+			resetCicada();
+		}
 	});
 
 	// Key up event handler
@@ -145,12 +168,11 @@ document.addEventListener('DOMContentLoaded', () => {
 	instructions.id = 'instructions';
 	instructions.innerHTML = `
         <h2>Cicada Controls</h2>
-        <p>Use arrow keys or WASD to move the cicada</p>
         <p>↑ or W: Move up</p>
         <p>↓ or S: Move down</p>
         <p>← or A: Move left</p>
         <p>→ or D: Move right</p>
-        <p>The cicada will rotate to face its direction of movement</p>
+        <p><strong>Spacebar: Reset cicada position</strong></p>
     `;
 	document.body.appendChild(instructions);
 });
