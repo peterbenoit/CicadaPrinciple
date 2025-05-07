@@ -19,8 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	};
 
 	const speed = 10; // pixels per keypress
-	const rotationSpeed = 10; // degrees per rotation adjustment
+	const rotationSpeed = 8; // slower rotation for more stability
 	let targetRotation = 0; // The rotation we want the cicada to have
+	let lastValidDirection = { dx: 0, dy: -1 }; // Default pointing up
 
 	// Track pressed keys
 	const keys = {
@@ -40,19 +41,21 @@ document.addEventListener('DOMContentLoaded', () => {
 		position.y = initialPosition.y;
 		position.rotation = initialPosition.rotation;
 		targetRotation = initialPosition.rotation;
+		lastValidDirection = { dx: 0, dy: -1 }; // Reset direction vector too
 		updateCicadaPosition();
 		updateFlightAnimation(false);
 	}
 
 	// Apply cicada position and transforms
 	function updateCicadaPosition() {
-		// Smoothly rotate towards target rotation
+		// Smoothly rotate towards target rotation with damping
 		if (position.rotation !== targetRotation) {
 			// Find shortest path to rotation (clockwise or counterclockwise)
 			let diff = targetRotation - position.rotation;
 			// Normalize to -180 to 180
 			diff = ((diff + 180) % 360) - 180;
 
+			// Apply rotation with damping for smoother transitions
 			if (Math.abs(diff) < rotationSpeed) {
 				position.rotation = targetRotation;
 			} else if (diff > 0) {
@@ -77,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	}
 
-	// Determine rotation based on movement direction
+	// Determine rotation based on movement direction with improved stability
 	function updateTargetRotation() {
 		// Get movement vector
 		let dx = 0, dy = 0;
@@ -87,10 +90,13 @@ document.addEventListener('DOMContentLoaded', () => {
 		if (keys.ArrowUp || keys.w) dy -= 1;
 		if (keys.ArrowDown || keys.s) dy += 1;
 
-		// Only update rotation if moving
+		// Only update rotation if moving and direction has changed
 		if (dx !== 0 || dy !== 0) {
-			// Calculate angle in degrees
-			// 0 = right, 90 = down, 180 = left, 270 = up (in CSS rotation)
+			// Store the last valid direction vector
+			lastValidDirection.dx = dx;
+			lastValidDirection.dy = dy;
+
+			// Calculate angle in degrees - 0 right, 90 down, 180 left, 270 up
 			targetRotation = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
 		}
 	}
@@ -119,17 +125,24 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	});
 
-	// Key up event handler
+	// Key up event handler with stability improvements
 	window.addEventListener('keyup', (e) => {
 		if (keys.hasOwnProperty(e.key)) {
 			keys[e.key] = false;
 
-			// Update rotation based on remaining movement keys
+			// Update rotation based on remaining pressed keys
 			updateTargetRotation();
 
-			// Stop flying animation if no movement keys are pressed
-			const isAnyMovementKeyPressed = Object.values(keys).some(value => value);
-			if (!isAnyMovementKeyPressed) {
+			// Get new movement vector after key release
+			let dx = 0, dy = 0;
+			if (keys.ArrowLeft || keys.a) dx -= 1;
+			if (keys.ArrowRight || keys.d) dx += 1;
+			if (keys.ArrowUp || keys.w) dy -= 1;
+			if (keys.ArrowDown || keys.s) dy += 1;
+
+			// If no direction keys are pressed, maintain last known direction
+			if (dx === 0 && dy === 0) {
+				// Stop flying animation
 				updateFlightAnimation(false);
 			}
 		}
@@ -137,21 +150,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// Game loop to continuously update position based on pressed keys
 	function gameLoop() {
-		// Vertical movement (up/down)
-		if (keys.ArrowUp || keys.w) {
-			position.y -= speed;
-		}
-		if (keys.ArrowDown || keys.s) {
-			position.y += speed;
+		// Movement vector
+		let dx = 0, dy = 0;
+
+		// Calculate movement vector
+		if (keys.ArrowLeft || keys.a) dx -= 1;
+		if (keys.ArrowRight || keys.d) dx += 1;
+		if (keys.ArrowUp || keys.w) dy -= 1;
+		if (keys.ArrowDown || keys.s) dy += 1;
+
+		// Normalize diagonal movement to prevent faster diagonal speed
+		if (dx !== 0 && dy !== 0) {
+			const magnitude = Math.sqrt(dx * dx + dy * dy);
+			dx = dx / magnitude;
+			dy = dy / magnitude;
 		}
 
-		// Horizontal movement (left/right)
-		if (keys.ArrowLeft || keys.a) {
-			position.x -= speed;
-		}
-		if (keys.ArrowRight || keys.d) {
-			position.x += speed;
-		}
+		// Apply movement
+		position.x += dx * speed;
+		position.y += dy * speed;
 
 		// Apply position changes
 		updateCicadaPosition();
