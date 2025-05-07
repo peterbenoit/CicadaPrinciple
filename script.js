@@ -12,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
 	};
 
 	const speed = 10; // pixels per keypress
-	const rotationSpeed = 15; // degrees per keypress
+	const rotationSpeed = 10; // degrees per rotation adjustment
+	let targetRotation = 0; // The rotation we want the cicada to have
 
 	// Track pressed keys
 	const keys = {
@@ -28,6 +29,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
 	// Apply cicada position and transforms
 	function updateCicadaPosition() {
+		// Smoothly rotate towards target rotation
+		if (position.rotation !== targetRotation) {
+			// Find shortest path to rotation (clockwise or counterclockwise)
+			let diff = targetRotation - position.rotation;
+			// Normalize to -180 to 180
+			diff = ((diff + 180) % 360) - 180;
+
+			if (Math.abs(diff) < rotationSpeed) {
+				position.rotation = targetRotation;
+			} else if (diff > 0) {
+				position.rotation += rotationSpeed;
+			} else {
+				position.rotation -= rotationSpeed;
+			}
+
+			// Keep rotation in 0-360 range
+			position.rotation = (position.rotation + 360) % 360;
+		}
+
 		cicada.style.transform = `translate(${position.x}px, ${position.y}px) rotate(${position.rotation}deg)`;
 	}
 
@@ -40,10 +60,31 @@ document.addEventListener('DOMContentLoaded', () => {
 		}
 	}
 
+	// Determine rotation based on movement direction
+	function updateTargetRotation() {
+		// Get movement vector
+		let dx = 0, dy = 0;
+
+		if (keys.ArrowLeft || keys.a) dx -= 1;
+		if (keys.ArrowRight || keys.d) dx += 1;
+		if (keys.ArrowUp || keys.w) dy -= 1;
+		if (keys.ArrowDown || keys.s) dy += 1;
+
+		// Only update rotation if moving
+		if (dx !== 0 || dy !== 0) {
+			// Calculate angle in degrees
+			// 0 = right, 90 = down, 180 = left, 270 = up (in CSS rotation)
+			targetRotation = Math.atan2(dy, dx) * (180 / Math.PI) + 90;
+		}
+	}
+
 	// Key down event handler
 	window.addEventListener('keydown', (e) => {
 		if (keys.hasOwnProperty(e.key)) {
 			keys[e.key] = true;
+
+			// Update rotation based on movement direction
+			updateTargetRotation();
 
 			// Start flying animation when any movement key is pressed
 			updateFlightAnimation(true);
@@ -59,6 +100,9 @@ document.addEventListener('DOMContentLoaded', () => {
 	window.addEventListener('keyup', (e) => {
 		if (keys.hasOwnProperty(e.key)) {
 			keys[e.key] = false;
+
+			// Update rotation based on remaining movement keys
+			updateTargetRotation();
 
 			// Stop flying animation if no movement keys are pressed
 			const isAnyMovementKeyPressed = Object.values(keys).some(value => value);
@@ -106,6 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <p>↓ or S: Move down</p>
         <p>← or A: Move left</p>
         <p>→ or D: Move right</p>
+        <p>The cicada will rotate to face its direction of movement</p>
     `;
 	document.body.appendChild(instructions);
 });
